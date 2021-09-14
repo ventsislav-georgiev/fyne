@@ -17,6 +17,7 @@ type CloudProvider interface {
 // CloudProviderPreferences interface defines the functionality that a cloud provider will include if it is capable
 // of synchronizing user preferences.
 type CloudProviderPreferences interface {
+	CloudProvider
 	// CloudPreferences returns a preference provider that will sync values to the cloud this provider uses.
 	CloudPreferences(App) Preferences
 }

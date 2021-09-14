@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -13,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/cmd/fyne/internal/mobile"
 
 	"github.com/urfave/cli/v2"
+	"golang.org/x/sys/execabs"
 )
 
 // Install returns the cli command for installing fyne applications
@@ -40,7 +40,7 @@ func Install() *cli.Command {
 			&cli.StringFlag{
 				Name:        "icon",
 				Usage:       "The name of the application icon file.",
-				Value:       "Icon.png",
+				Value:       "",
 				Destination: &i.icon,
 			},
 			&cli.StringFlag{
@@ -195,12 +195,12 @@ func (i *Installer) installIOS() error {
 }
 
 func (i *Installer) runMobileInstall(tool, target string, args ...string) error {
-	_, err := exec.LookPath(tool)
+	_, err := execabs.LookPath(tool)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(tool, append(args, target)...)
+	cmd := execabs.Command(tool, append(args, target)...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdout = os.Stdout
 	return cmd.Run()

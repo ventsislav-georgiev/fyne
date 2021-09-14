@@ -64,14 +64,14 @@ func (p *PopUpMenu) Hide() {
 //
 // Implements: fyne.Widget
 func (p *PopUpMenu) Move(pos fyne.Position) {
-	p.Base.Move(p.adjustedPosition(pos, p.Size()))
+	p.BaseWidget.Move(p.adjustedPosition(pos, p.Size()))
 }
 
 // Resize changes the size of the pop-up menu.
 //
 // Implements: fyne.Widget
 func (p *PopUpMenu) Resize(size fyne.Size) {
-	p.Base.Move(p.adjustedPosition(p.Position(), size))
+	p.BaseWidget.Move(p.adjustedPosition(p.Position(), size))
 	p.Menu.Resize(size)
 }
 
@@ -79,6 +79,9 @@ func (p *PopUpMenu) Resize(size fyne.Size) {
 //
 // Implements: fyne.Widget
 func (p *PopUpMenu) Show() {
+	p.Menu.alignment = p.alignment
+	p.Menu.Refresh()
+
 	p.overlay.Show()
 	p.Menu.Show()
 	p.canvas.Focus(p)

@@ -13,11 +13,13 @@ var _ fyne.Tappable = (*Menu)(nil)
 
 // Menu is a widget for displaying a fyne.Menu.
 type Menu struct {
-	widget.Base
-	Items       []fyne.CanvasObject
-	OnDismiss   func()
-	activeItem  *menuItem
-	customSized bool
+	BaseWidget
+	alignment     fyne.TextAlign
+	Items         []fyne.CanvasObject
+	OnDismiss     func()
+	activeItem    *menuItem
+	customSized   bool
+	containsCheck bool
 }
 
 // NewMenu creates a new Menu.
@@ -142,7 +144,26 @@ func (m *Menu) DeactivateLastSubmenu() bool {
 // Implements: fyne.Widget
 func (m *Menu) MinSize() fyne.Size {
 	m.ExtendBaseWidget(m)
-	return m.Base.MinSize()
+	return m.BaseWidget.MinSize()
+}
+
+// Refresh updates the menu to reflect changes in the data.
+//
+// Implements: fyne.Widget
+func (m *Menu) Refresh() {
+	for _, item := range m.Items {
+		item.Refresh()
+	}
+	m.BaseWidget.Refresh()
+}
+
+func (m *Menu) getContainsCheck() bool {
+	for _, item := range m.Items {
+		if mi, ok := item.(*menuItem); ok && mi.Item.Checked {
+			return true
+		}
+	}
+	return false
 }
 
 // Tapped catches taps on separators and the menu background. It doesn’t perform any action.
@@ -197,6 +218,7 @@ func (m *Menu) setMenu(menu *fyne.Menu) {
 			m.Items[i] = newMenuItem(item, m)
 		}
 	}
+	m.containsCheck = m.getContainsCheck()
 }
 
 type menuRenderer struct {
@@ -215,8 +237,8 @@ func (r *menuRenderer) Layout(s fyne.Size) {
 		boxSize = minSize
 	}
 	scrollSize := boxSize
-	if c := fyne.CurrentApp().Driver().CanvasForObject(r.m); c != nil {
-		ap := fyne.CurrentApp().Driver().AbsolutePositionForObject(r.m)
+	if c := fyne.CurrentApp().Driver().CanvasForObject(r.m.super()); c != nil {
+		ap := fyne.CurrentApp().Driver().AbsolutePositionForObject(r.m.super())
 		pos, size := c.InteractiveArea()
 		bottomPad := c.Size().Height - pos.Y - size.Height
 		if ah := c.Size().Height - bottomPad - ap.Y; ah < boxSize.Height {
@@ -241,6 +263,14 @@ func (r *menuRenderer) MinSize() fyne.Size {
 func (r *menuRenderer) Refresh() {
 	r.layoutActiveChild()
 	r.ShadowingRenderer.RefreshShadow()
+
+	for _, i := range r.m.Items {
+		if txt, ok := i.(*menuItem); ok {
+			txt.alignment = r.m.alignment
+			txt.Refresh()
+		}
+	}
+
 	canvas.Refresh(r.m)
 }
 

@@ -85,6 +85,7 @@ func (f *Form) MinSize() fyne.Size {
 // Refresh updates the widget state when requested.
 func (f *Form) Refresh() {
 	cache.Renderer(f.super()) // we are about to make changes to renderer created content... not great!
+	f.ensureRenderItems()
 	f.updateButtons()
 	f.updateLabels()
 	f.BaseWidget.Refresh()
@@ -137,8 +138,12 @@ func (f *Form) createInput(item *FormItem) fyne.CanvasObject {
 	return fyne.NewContainerWithLayout(layout.NewVBoxLayout(), item.Widget, fyne.NewContainerWithoutLayout(text))
 }
 
-func (f *Form) createLabel(text string) *Label {
-	return NewLabelWithStyle(text, fyne.TextAlignTrailing, fyne.TextStyle{Bold: true})
+func (f *Form) createLabel(text string) *canvas.Text {
+	return &canvas.Text{Text: text,
+		Alignment: fyne.TextAlignTrailing,
+		Color:     theme.ForegroundColor(),
+		TextSize:  theme.TextSize(),
+		TextStyle: fyne.TextStyle{Bold: true}}
 }
 
 func (f *Form) updateButtons() {
@@ -189,6 +194,30 @@ func (f *Form) checkValidation(err error) {
 	}
 }
 
+func (f *Form) ensureRenderItems() {
+	done := len(f.itemGrid.Objects) / 2
+	if done >= len(f.Items) {
+		f.itemGrid.Objects = f.itemGrid.Objects[0 : len(f.Items)*2]
+		return
+	}
+
+	adding := len(f.Items) - done
+	objects := make([]fyne.CanvasObject, adding*2)
+	off := 0
+	for i, item := range f.Items {
+		if i < done {
+			continue
+		}
+
+		objects[off] = f.createLabel(item.Text)
+		off++
+		f.setUpValidation(item.Widget, i)
+		objects[off] = f.createInput(item)
+		off++
+	}
+	f.itemGrid.Objects = append(f.itemGrid.Objects, objects...)
+}
+
 func (f *Form) setUpValidation(widget fyne.CanvasObject, i int) {
 	updateValidation := func(err error) {
 		if err == errFormItemInitialState {
@@ -234,12 +263,18 @@ func (f *Form) updateHelperText(item *FormItem) {
 
 func (f *Form) updateLabels() {
 	for i, item := range f.Items {
-		l := f.itemGrid.Objects[i*2].(*Label)
-		if l.Text == item.Text {
-			continue
+		l := f.itemGrid.Objects[i*2].(*canvas.Text)
+		l.TextSize = theme.TextSize()
+		if dis, ok := item.Widget.(fyne.Disableable); ok {
+			if dis.Disabled() {
+				l.Color = theme.DisabledColor()
+			} else {
+				l.Color = theme.ForegroundColor()
+			}
 		}
 
-		l.SetText(item.Text)
+		l.Text = item.Text
+		l.Refresh()
 		f.updateHelperText(item)
 	}
 }
@@ -253,18 +288,12 @@ func (f *Form) CreateRenderer() fyne.WidgetRenderer {
 	buttons := &fyne.Container{Layout: layout.NewGridLayoutWithRows(1), Objects: []fyne.CanvasObject{f.cancelButton, f.submitButton}}
 	f.buttonBox = &fyne.Container{Layout: layout.NewBorderLayout(nil, nil, nil, buttons), Objects: []fyne.CanvasObject{buttons}}
 
-	objects := make([]fyne.CanvasObject, len(f.Items)*2)
-	for i, item := range f.Items {
-		objects[i*2] = f.createLabel(item.Text)
-
-		f.setUpValidation(item.Widget, i)
-		objects[i*2+1] = f.createInput(item)
-	}
-	f.itemGrid = fyne.NewContainerWithLayout(layout.NewFormLayout(), objects...)
-
+	f.itemGrid = &fyne.Container{Layout: layout.NewFormLayout()}
 	renderer := NewSimpleRenderer(fyne.NewContainerWithLayout(layout.NewVBoxLayout(), f.itemGrid, f.buttonBox))
-	f.updateButtons()      // will set correct visibility on the submit/cancel btns
-	f.checkValidation(nil) // will trigger a validation check for correct initial validation status
+	f.ensureRenderItems()
+	f.updateButtons()
+	f.updateLabels()
+	f.checkValidation(nil) // will trigger a validation check for correct intial validation status
 	return renderer
 }
 

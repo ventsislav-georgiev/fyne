@@ -107,9 +107,12 @@ func (a *testApp) lastAppliedTheme() fyne.Theme {
 func NewApp() fyne.App {
 	settings := &testSettings{scale: 1.0, theme: Theme()}
 	prefs := internal.NewInMemoryPreferences()
-	test := &testApp{settings: settings, prefs: prefs, storage: &testStorage{}, driver: NewDriver().(*testDriver),
+	store := &testStorage{}
+	test := &testApp{settings: settings, prefs: prefs, storage: store, driver: NewDriver().(*testDriver),
 		lifecycle: &app.Lifecycle{}}
-	cache.ResetSvg()
+	root, _ := store.docRootURI()
+	store.Docs = &internal.Docs{RootDocURI: root}
+	cache.ResetThemeCaches()
 	fyne.SetCurrentApp(test)
 
 	listener := make(chan fyne.Settings)
@@ -117,7 +120,7 @@ func NewApp() fyne.App {
 	go func() {
 		for {
 			<-listener
-			cache.ResetSvg()
+			cache.ResetThemeCaches()
 			app.ApplySettings(test.Settings(), test)
 
 			test.propertyLock.Lock()

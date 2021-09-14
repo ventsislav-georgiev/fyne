@@ -82,7 +82,7 @@ func TestWindow_ToggleMainMenuByKeyboard(t *testing.T) {
 	w := createWindow("Test").(*window)
 	c := w.Canvas().(*glCanvas)
 	m := fyne.NewMainMenu(fyne.NewMenu("File"), fyne.NewMenu("Edit"), fyne.NewMenu("Help"))
-	menuBar := buildMenuOverlay(m, c).(*MenuBar)
+	menuBar := buildMenuOverlay(m, w).(*MenuBar)
 	c.Lock()
 	c.setMenuOverlay(menuBar)
 	c.Unlock()
@@ -318,6 +318,30 @@ func TestWindow_HandleDragging(t *testing.T) {
 	repaintWindow(w)
 	require.Equal(t, fyne.NewPos(0, 0), d1.Position())
 	require.Equal(t, fyne.NewPos(14, 0), d2.Position())
+
+	// no drag event in simple move
+	w.mouseMoved(w.viewport, 9, 9)
+	w.WaitForEvents()
+	assert.Nil(t, d1.popDragEvent())
+	assert.Nil(t, d2.popDragEvent())
+
+	// no drag event on secondary mouseDown
+	w.mouseClicked(w.viewport, glfw.MouseButton2, glfw.Press, 0)
+	w.WaitForEvents()
+	assert.Nil(t, d1.popDragEvent())
+	assert.Nil(t, d2.popDragEvent())
+
+	// no drag start and no drag event with pressed secondary mouse button
+	w.mouseMoved(w.viewport, 8, 8)
+	w.WaitForEvents()
+	assert.Nil(t, d1.popDragEvent())
+	assert.Nil(t, d2.popDragEvent())
+
+	// no drag end event on secondary mouseUp
+	w.mouseClicked(w.viewport, glfw.MouseButton2, glfw.Release, 0)
+	w.WaitForEvents()
+	assert.Nil(t, d1.popDragEndEvent())
+	assert.Nil(t, d2.popDragEndEvent())
 
 	// no drag event in simple move
 	w.mouseMoved(w.viewport, 9, 9)
@@ -1370,7 +1394,7 @@ func TestWindow_SetPadded(t *testing.T) {
 	if hasNativeMenu() {
 		menuHeight = 0
 	} else {
-		menuHeight = widget.NewToolbar(widget.NewToolbarAction(theme.ContentCutIcon(), func() {})).MinSize().Height
+		menuHeight = canvas.NewText("", color.Black).MinSize().Height + theme.Padding()*2
 	}
 	fyne.CurrentApp().Settings().SetTheme(theme.DarkTheme())
 	tests := []struct {
@@ -1592,6 +1616,20 @@ func TestWindow_CloseInterception(t *testing.T) {
 	w.closed(w.viewport)
 	w.WaitForEvents()
 	assert.True(t, onClosed) // Close is called if the interceptor is not set.
+}
+
+func TestWindow_SetContent_Twice(t *testing.T) {
+	w := createWindow("Test").(*window)
+
+	e1 := widget.NewLabel("1")
+	e2 := widget.NewLabel("2")
+
+	w.SetContent(e1)
+	assert.True(t, e1.Visible())
+	w.SetContent(e2)
+	assert.True(t, e2.Visible())
+	w.SetContent(e1)
+	assert.True(t, e1.Visible())
 }
 
 // This test makes our developer screens flash, let's not run it regularly...

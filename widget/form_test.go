@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/data/validation"
 	"fyne.io/fyne/v2/test"
 	"fyne.io/fyne/v2/theme"
@@ -41,6 +42,19 @@ func TestForm_Append(t *testing.T) {
 	form.AppendItem(item)
 	assert.True(t, len(form.Items) == 3)
 	assert.Equal(t, item, form.Items[2])
+}
+
+func TestForm_Append_Items(t *testing.T) {
+	form := &Form{Items: []*FormItem{{Text: "test1", Widget: NewEntry()}}}
+	assert.Equal(t, 1, len(form.Items))
+	renderer := test.WidgetRenderer(form)
+
+	form.Items = append(form.Items, NewFormItem("test2", NewEntry()))
+	assert.True(t, len(form.Items) == 2)
+
+	form.Refresh()
+	c := renderer.Objects()[0].(*fyne.Container).Objects[0].(*fyne.Container)
+	assert.Equal(t, "test2", c.Objects[2].(*canvas.Text).Text)
 }
 
 func TestForm_CustomButtonsText(t *testing.T) {
@@ -104,11 +118,11 @@ func TestForm_ChangeText(t *testing.T) {
 
 	renderer := test.WidgetRenderer(form)
 	c := renderer.Objects()[0].(*fyne.Container).Objects[0].(*fyne.Container)
-	assert.Equal(t, "Test", c.Objects[0].(*Label).Text)
+	assert.Equal(t, "Test", c.Objects[0].(*canvas.Text).Text)
 
 	item.Text = "Changed"
 	form.Refresh()
-	assert.Equal(t, "Changed", c.Objects[0].(*Label).Text)
+	assert.Equal(t, "Changed", c.Objects[0].(*canvas.Text).Text)
 }
 
 func TestForm_ChangeTheme(t *testing.T) {
@@ -131,6 +145,23 @@ func TestForm_ChangeTheme(t *testing.T) {
 		w.Resize(form.MinSize().Add(fyne.NewSize(theme.Padding()*2, theme.Padding()*2)))
 		test.AssertImageMatches(t, "form/theme_changed.png", w.Canvas().Capture())
 	})
+}
+
+func TestForm_Disabled(t *testing.T) {
+	app := test.NewApp()
+	defer test.NewApp()
+	app.Settings().SetTheme(theme.LightTheme())
+
+	disabled := NewEntry()
+	disabled.Disable()
+	f := NewForm(
+		NewFormItem("Form Item 1", NewEntry()),
+		NewFormItem("Form Item 2", disabled))
+
+	w := test.NewWindow(f)
+	defer w.Close()
+
+	test.AssertImageMatches(t, "form/disabled.png", w.Canvas().Capture())
 }
 
 func TestForm_Hints(t *testing.T) {

@@ -1,9 +1,9 @@
 package commands
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 
@@ -12,6 +12,7 @@ import (
 	"fyne.io/fyne/v2/cmd/fyne/internal/templates"
 	"fyne.io/fyne/v2/cmd/fyne/internal/util"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/execabs"
 )
 
 func (p *Packager) packageAndroid(arch string) error {
@@ -61,14 +62,37 @@ func (p *Packager) packageIOS() error {
 	}
 
 	appDir := filepath.Join(p.dir, mobile.AppOutputName(p.os, p.name))
-	cmd := exec.Command("xcrun", "actool", "Images.xcassets", "--compile", appDir, "--platform",
+	return runCmdCaptureOutput("xcrun", "actool", "Images.xcassets", "--compile", appDir, "--platform",
 		"iphoneos", "--target-device", "iphone", "--minimum-deployment-target", "9.0", "--app-icon", "AppIcon",
-		"--output-partial-info-plist", "/dev/null")
-	return cmd.Run()
+		"--output-format", "human-readable-text", "--output-partial-info-plist", "/dev/null")
 }
 
 func copyResizeIcon(size int, dir, source string) error {
 	strSize := strconv.Itoa(size)
 	path := dir + "/Icon_" + strSize + ".png"
-	return exec.Command("sips", "-o", path, "-Z", strSize, source).Run()
+	return runCmdCaptureOutput("sips", "-o", path, "-Z", strSize, source)
+}
+
+// runCmdCaptureOutput is a exec.Command wrapper that offers better error messages from stdout and stderr.
+func runCmdCaptureOutput(name string, args ...string) error {
+	var (
+		outbuf = &bytes.Buffer{}
+		errbuf = &bytes.Buffer{}
+	)
+	cmd := execabs.Command(name, args...)
+	cmd.Stdout = outbuf
+	cmd.Stderr = errbuf
+	err := cmd.Run()
+	if err != nil {
+		outstr := outbuf.String()
+		errstr := errbuf.String()
+		if outstr != "" {
+			err = errors.Wrap(err, outbuf.String())
+		}
+		if errstr != "" {
+			err = errors.Wrap(err, errbuf.String())
+		}
+		return err
+	}
+	return nil
 }

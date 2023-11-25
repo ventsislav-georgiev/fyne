@@ -14,6 +14,7 @@ import (
 	"fyne.io/fyne/v2/internal/cache"
 	"fyne.io/fyne/v2/internal/driver"
 	"fyne.io/fyne/v2/internal/driver/common"
+	"github.com/go-gl/glfw/v3.3/glfw"
 )
 
 const (
@@ -32,9 +33,17 @@ func (w *window) Title() string {
 func (w *window) SetTitle(title string) {
 	w.title = title
 
-	w.runOnMainWhenCreated(func() {
+	w.RunOnMainWhenCreated(func() {
 		w.view().SetTitle(title)
 	})
+}
+
+func (w *window) ViewPort() *glfw.Window {
+	return w.view()
+}
+
+func (w *window) SetBeforeShowed(beforeShowed func()) {
+	w.onBeforeShowed = beforeShowed
 }
 
 func (w *window) FullScreen() bool {
@@ -55,7 +64,7 @@ func (w *window) screenSize(canvasSize fyne.Size) (int, int) {
 func (w *window) Resize(size fyne.Size) {
 	// we cannot perform this until window is prepared as we don't know it's scale!
 	bigEnough := size.Max(w.canvas.canvasSize(w.canvas.Content().MinSize()))
-	w.runOnMainWhenCreated(func() {
+	w.RunOnMainWhenCreated(func() {
 		w.viewLock.Lock()
 
 		width, height := internal.ScaleInt(w.canvas, bigEnough.Width), internal.ScaleInt(w.canvas, bigEnough.Height)
@@ -76,7 +85,7 @@ func (w *window) FixedSize() bool {
 func (w *window) SetFixedSize(fixed bool) {
 	w.fixedSize = fixed
 	if w.view() != nil {
-		w.runOnMainWhenCreated(w.fitContent)
+		w.RunOnMainWhenCreated(w.fitContent)
 	}
 }
 
@@ -87,7 +96,7 @@ func (w *window) Padded() bool {
 func (w *window) SetPadded(padded bool) {
 	w.canvas.SetPadded(padded)
 
-	w.runOnMainWhenCreated(w.fitContent)
+	w.RunOnMainWhenCreated(w.fitContent)
 }
 
 func (w *window) Icon() fyne.Resource {
@@ -104,7 +113,7 @@ func (w *window) MainMenu() *fyne.MainMenu {
 
 func (w *window) SetMainMenu(menu *fyne.MainMenu) {
 	w.mainmenu = menu
-	w.runOnMainWhenCreated(func() {
+	w.RunOnMainWhenCreated(func() {
 		w.canvas.buildMenu(w, menu)
 	})
 }
@@ -156,6 +165,9 @@ func (w *window) doShow() {
 
 		if w.centered {
 			w.doCenterOnScreen() // lastly center if that was requested
+		}
+		if w.onBeforeShowed != nil {
+			w.onBeforeShowed()
 		}
 		w.view().Show()
 
@@ -919,13 +931,17 @@ func (w *window) Context() interface{} {
 	return nil
 }
 
-func (w *window) runOnMainWhenCreated(fn func()) {
+func (w *window) RunOnMainWhenCreated(fn func()) {
 	if w.view() != nil {
 		runOnMain(fn)
 		return
 	}
 
 	w.pending = append(w.pending, fn)
+}
+
+func (w *window) RunOnMain(fn func()) {
+	runOnMain(fn)
 }
 
 func (d *gLDriver) CreateWindow(title string) fyne.Window {

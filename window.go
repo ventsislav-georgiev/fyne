@@ -1,5 +1,16 @@
 package fyne
 
+import "github.com/go-gl/glfw/v3.3/glfw"
+
+type GLFWWindow interface {
+	Window
+
+	ViewPort() *glfw.Window
+	RunOnMain(fn func())
+	RunOnMainWhenCreated(fn func())
+	SetBeforeShowed(beforeShowed func())
+}
+
 // Window describes a user interface window. Depending on the platform an app
 // may have many windows or just the one.
 type Window interface {

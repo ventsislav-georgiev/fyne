@@ -9,7 +9,6 @@ import (
 	"fyne.io/fyne/v2/internal"
 	"fyne.io/fyne/v2/internal/app"
 	"fyne.io/fyne/v2/internal/cache"
-	"fyne.io/fyne/v2/internal/painter"
 )
 
 type funcData struct {
@@ -184,10 +183,6 @@ func (d *gLDriver) runGL() {
 				d.windowLock.Lock()
 				d.windows = newWindows
 				d.windowLock.Unlock()
-
-				if len(newWindows) == 0 {
-					d.Quit()
-				}
 			}
 		}
 	}
@@ -218,8 +213,6 @@ func (d *gLDriver) repaintWindow(w *window) {
 }
 
 func (d *gLDriver) startDrawThread() {
-	settingsChange := make(chan fyne.Settings)
-	fyne.CurrentApp().Settings().AddChangeListener(settingsChange)
 	var drawCh <-chan time.Time
 	if drawOnMainThread {
 		drawCh = make(chan time.Time) // don't tick when on M1
@@ -239,17 +232,6 @@ func (d *gLDriver) startDrawThread() {
 				if f.done != nil {
 					f.done <- struct{}{}
 				}
-			case set := <-settingsChange:
-				painter.ClearFontCache()
-				cache.ResetThemeCaches()
-				app.ApplySettingsWithCallback(set, fyne.CurrentApp(), func(w fyne.Window) {
-					c, ok := w.Canvas().(*glCanvas)
-					if !ok {
-						return
-					}
-					c.applyThemeOutOfTreeObjects()
-					go c.reloadScale()
-				})
 			case <-drawCh:
 				d.drawSingleFrame()
 			}

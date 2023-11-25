@@ -98,6 +98,7 @@ type window struct {
 
 	onClosed           func()
 	onCloseIntercepted func()
+	onBeforeShowed     func()
 
 	menuTogglePending       fyne.KeyName
 	menuDeactivationPending fyne.KeyName
@@ -169,7 +170,7 @@ func (w *window) RequestFocus() {
 		return
 	}
 
-	w.runOnMainWhenCreated(w.viewport.Focus)
+	w.RunOnMainWhenCreated(w.viewport.Focus)
 }
 
 func (w *window) SetIcon(icon fyne.Resource) {
@@ -182,7 +183,7 @@ func (w *window) SetIcon(icon fyne.Resource) {
 		return
 	}
 
-	w.runOnMainWhenCreated(func() {
+	w.RunOnMainWhenCreated(func() {
 		if w.icon == nil {
 			w.viewport.SetIcon(nil)
 			return
